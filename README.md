@@ -8,7 +8,7 @@ version:0.0
 
 ##Environment##
 -Compiler the project:
-clang++ -g main.cpp `llvm-config --cppflags --ldflags --libs core jit native` -O3 -o main
+clang++ -g main.cpp \`llvm-config --cppflags --ldflags --libs core jit native\` -O3 -o main
 
 ##Reference##
 - <a href="http://llvm.org/docs/tutorial/LangImpl4.html">LLVM-LangImpl</a>
