@@ -1,6 +1,6 @@
 #Pyww#
 version:0.0
-###description#
+###Description#
 Pyww is a python compiler  using LLVM
 
 ##Developer:##
