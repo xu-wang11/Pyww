@@ -1,4 +1,8 @@
-1. number,  string, boolean,  
-1. support while 
-2. embed function
-3. 
+1.variant type: number,  string, boolean, Array 
+2.logical op: and, or, not 
+3.support class: Array
+4.reflection 
+5.control flow: support while 
+6.embed function: use rename trick
+
+
