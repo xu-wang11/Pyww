@@ -1,5 +1,7 @@
 #Pyww#
 version:0.0
+###description#
+Pyww is a python compiler  using LLVM
 
 ##Developer:##
 - Xu Wang  xu-wang11@mails.thu.edu.cn
