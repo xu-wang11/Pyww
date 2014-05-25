@@ -7,7 +7,18 @@ version:0.0
 - <a href="http://yanglei.me" target="_blank">Lei Yang</a> yanglei11@mails.thu.edu.cn
 
 ##Environment##
--Compiler the project:
+###packages#
+<table>
+<tr>
+<th>name</th><th>version</th>
+</tr>
+<tr>
+<td>LLVM</td><td>3.4</td>
+</tr>
+<td>Clang</td><td>3.4</td>
+</table>
+
+###Compiler the project:#
 clang++ -g main.cpp \`llvm-config --cppflags --ldflags --libs core jit native\` -O3 -o main
 
 ##Reference##
