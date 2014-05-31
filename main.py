@@ -7,8 +7,8 @@ from llvm.ee import *
 from llvm.passes import *
 
 import sys
-import PywwFunction
-from PywwModule import PywwModule
+from PModule import PModule
+
 #compile function in python
 #a function can be compiled directly means:
 #(1)this function has no args
@@ -25,7 +25,7 @@ print content
 compiler = ast.parse(content, "result.py", mode='exec')
 #compileFunction(compiler)
 mymodule = Module.new("main")
-moduleitem = PywwModule(compiler, mymodule)
+moduleitem = PModule(compiler, mymodule)
 modules.append(moduleitem)
 moduleitem.compile()
 print "end"

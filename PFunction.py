@@ -20,4 +20,3 @@ class PFunction:
 		self.module = module
 		if isinstance(module, Module):
 			func = module.add_function(Type.int(), Type.int())
-			f

@@ -16,11 +16,13 @@ class PAssign:
 		self.module = module
 
 
-	def compile(self):
-		target = self.sentence.targets[0]
-		if isinstance(target, ast.Name):
-			name = target.targets[0].id
-			value = self.sentence.value
-			if isinstance(value, ast.Num):
+    def compile(self):
+        target = self.sentence.targets[0]
+        if isinstance(target, ast.Name):
+            name = target.targets[0].id
+            value = self.sentence.value
+            if isinstance(value, ast.Num):
+                print "value"
+        print target
 
 

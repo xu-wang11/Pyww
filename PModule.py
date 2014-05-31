@@ -6,6 +6,7 @@ from llvm.core import *
 from llvm.ee import *
 from llvm.passes import *
 from PVariable import PVariable
+from PFunction import PFunction
 
 from util import *
 
@@ -42,11 +43,6 @@ class PModule:
 				variable = module.get_global_variable_named(name)
 				if not variable:
 					variable = GlobalVariable.new(module, type, name)
-				if
-
-
-
-
 				print "assign"
 			elif isinstance(item, ast.While):
 				print "while"
