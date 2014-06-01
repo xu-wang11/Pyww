@@ -6,7 +6,7 @@ from llvm.core import *
 from llvm.ee import *
 from llvm.passes import *
 from PVariable import PVariable
-#from PAssign import  PAssign
+from PAssign import  PAssign
 from PFunction import PFunction
 from util import *
 
@@ -34,12 +34,11 @@ class PModule:
 			#self.function.builder.store(value, vari)
 			type = Type.function(Type.int(), [Type.pointer(Type.int(8))], True)
 			llvmmodule.add_function(type, "printf")
+
 	def compile(self):
 		self.function.compile()
-		module = self.llvmModule
-
+		self.function.builder.ret_void()
 		print self.llvmModule
-
 
 
 

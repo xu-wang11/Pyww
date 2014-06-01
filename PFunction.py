@@ -69,7 +69,6 @@ class PFunction:
 						else:
 							print "error!"
 
-
 			else:
 				print "no idea"
 		self.builder.ret_void()
