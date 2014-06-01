@@ -24,6 +24,7 @@ class Compiler:
 
 	module = None
 	global_builder = None
+	global_string = {}
 	current_builder = []
 	global_variables = {}
 	current_variables = {}
@@ -43,12 +44,17 @@ class Compiler:
 		writer.write(self.module.__str__())
 
 	def add_global_str(self, string, name=None):
+		for item in self.global_string:
+			varu = self.global_string[item]
+			if varu == string:
+				return self.global_variables[item]
 		if name is None:
 			name = self.names.get_next_name()
 			#name = 'tmp'
 		variable = self.module.add_global_variable(Type.array(Type.int(8), len(string)), name=name)
 		variable.initializer = Constant.string(string)
 		self.global_variables[name] = variable
+		self.global_string[name] = string
 		return variable
 
 	def add_global_variable(self, type, name):

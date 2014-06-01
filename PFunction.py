@@ -48,7 +48,7 @@ class PFunction:
 			function_type = Type.function(Type.void(), args)
 			self.compiler = compiler
 			self.function = self.compiler.add_declare_function(name, function_type)
-			bb = self.function.append_basic_block("entry0")
+			bb = self.function.append_basic_block("entry")
 			self.builder = Builder.new(bb)
 			self.compiler.current_builder = self.builder
 			self.compiler.current_variables = self.variable
@@ -59,7 +59,7 @@ class PFunction:
 				function_type = Type.function(ret_type, args)
 				self.function = self.compiler.add_declare_function(name, function_type)
 				#print "compile normal function"
-				bb = self.function.append_basic_block("entry0")
+				bb = self.function.append_basic_block("entry")
 				self.builder = Builder.new(bb)
 				self.compiler.current_builder = self.builder
 				self.compiler.current_variables = self.variable
