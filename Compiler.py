@@ -202,6 +202,19 @@ class Compiler:
 				variable = self.compile_object(item)
 				self.print_string(variable)
 
+	def type2string(self, type):
+		if isinstance(type, IntegerType):
+			return "int"
+		elif isinstance(type, Type.pointer(Type.int(8))):
+			return "str"
+	#def compile_function(self, node):
+
+	def compile_return(self, node):
+		variable = self.compile_object(node.value)
+		self.current_builder.ret(variable)
+		return variable.type
+
+
 
 
 

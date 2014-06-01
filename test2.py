@@ -1,6 +1,3 @@
-__author__ = 'xu'
-
-
 def qsort(array, head, tail):
 	l = head
 	r = tail
@@ -22,10 +19,10 @@ def qsort(array, head, tail):
 		qsort(array, head, r)
 
 
-def main():
+def test():
 	a = [1, 2, 3, 9, 3, 4, 7, 10, 90, 20, 11, 10, 20]
 	qsort(a, 0, 12)
 	for item in a:
 		print item
-main()
+test()
 
