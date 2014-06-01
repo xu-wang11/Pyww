@@ -3,4 +3,4 @@ b = 1
 c = 2
 d = 4
 a = (a + b) + (c + d)
-print a
+print a, a + b, "\nhello world\n"

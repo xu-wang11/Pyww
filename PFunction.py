@@ -5,70 +5,62 @@ from llvm import *
 from llvm.core import *
 from llvm.ee import *
 from llvm.passes import *
-from PAssign import PAssign
+
 
 
 class PFunction:
-	variable = {}
-	parent = None
+	#variable = {}
 	node = None
 	function = None
-	module = None
-	builder = None
+	vfunction = []
+	compiler = None
 	argnames = []
 	functionName = ""
 	#the function is for module or just for function
-	isModule = True
-	def __init__(self, ismodule, node, parent, module):
-		self.node = node
-		self.parent = parent
-		self.module = module
-		self.isModule = ismodule
-		if isinstance(module, Module):
-			if self.isModule:
-				function = Type.function(Type.void(), [])
-				func = module.add_function(function, "main")
-				self.function = func
-			else:
-				print "agrs"
-			bb = func.append_basic_block("entry")
-			self.builder = Builder.new(bb)
+	isModule = False
 
-	def compile(self, args = None, ret=None):
+	def __init__(self, ismodule, node):
+		self.node = node
+
+		self.isModule = ismodule
+		if not ismodule:
+			print "extract attrs"
+
+	def bind_compiler(self, compiler, ismain = False, args = None, ret = None):
+		if ismain:
+			function_type = Type.function(Type.int(), [])
+			self.compiler = compiler
+			self.function = self.compiler.add_declare_function("main", function_type)
+			bb = self.function.append_basic_block("entry")
+			builder = Builder.new(bb)
+
+			self.compiler.current_builder = builder
+			self.compiler.global_builder = builder
+			self.compiler.current_variables = {}
+			self.compiler.set_is_main(True)
+			self.compile()
+		else:
+			print "compile normal function"
+			self.compile()
+
+	def compile(self):
+		#print self.compiler
 		for item in ast.iter_child_nodes(self.node):
 			if isinstance(item, ast.FunctionDef):
 				func = PFunction(False, item, self, self.module)
-				self.function.append(func)
+				self.vfunction.append(func)
 				print "function"
 			elif isinstance(item, ast.Expr):
 				print "expr"
 			elif isinstance(item, ast.Assign):
-				assign = PAssign(self.isModule, item, self, self.builder, self.module)
-				assign.compile()
-
-				print "assign"
+				self.compiler.compile_assign(item)
 			elif isinstance(item, ast.While):
 				print "while"
 			elif isinstance(item, ast.If):
 				print "If"
 			elif isinstance(item, ast.Print):
-				for content in item.values:
-					if isinstance(content, ast.Name):
-						if content.id in self.variable:
-
-							str = self.module.get_global_variable_named("printd")
-
-							function = self.module.get_function_named("printf")
-							#print len(function.args)
-							#ptr = Type.pointer(Type.int(8), module.getel)
-							head = self.builder.gep(str,  [Constant.int(Type.int(), 0), Constant.int(Type.int(), 0)])
-							value = self.builder.load(self.variable[content.id])
-							args = [head, value]
-							if isinstance(value.type, IntegerType):
-								self.builder.call(function, args, 'calltmp')
-						else:
-							print "error!"
+				self.compiler.compile_print(item)
 
 			else:
 				print "no idea"
-		self.builder.ret_void()
+		self.compiler.current_builder.ret(Constant.int(Type.int(), 0))
