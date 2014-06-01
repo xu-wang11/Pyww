@@ -2,6 +2,8 @@ __author__ = 'xu'
 
 a = [1]
 
+class f:
+	a = None
 
 def func():
 	a[0] = 2

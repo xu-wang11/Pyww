@@ -6,55 +6,39 @@ from llvm.core import *
 from llvm.ee import *
 from llvm.passes import *
 from PVariable import PVariable
-
+#from PAssign import  PAssign
+from PFunction import PFunction
 from util import *
 
 
 class PModule:
-	function = []
-	variable = []
-	expression = []
-	astModule = 0
-	llvmModule = 0
+	function = None
+	astModule = None
+	llvmModule = None
+	modulename = None
 
-	def __init__(self, astmodule, llvmmodule):
+	def __init__(self, astmodule, llvmmodule, name):
 		self.astModule = astmodule
 		self.llvmModule = llvmmodule
+		self.modulename = name
+
+		self.function = PFunction(True, astmodule, None, llvmmodule)
+		self.function.functionName = name
+
 		if not isinstance(llvmmodule, Module):
 			print "not llvm::module"
-
+		else:
+			vari = llvmmodule.add_global_variable(Type.array(Type.int(8), 2), name="printd") #"%d"
+			value = Constant.string("%d")
+			vari.initializer = Constant.string("%d")
+			#self.function.builder.store(value, vari)
+			type = Type.function(Type.int(), [Type.pointer(Type.int(8))], True)
+			llvmmodule.add_function(type, "printf")
 	def compile(self):
-		for item in ast.iter_child_nodes(self.astModule):
-			if isinstance(item, ast.FunctionDef):
-				func = PFunction(item)
-				self.function.append(func)
-				print "function"
-			elif isinstance(item, ast.Expr):
-				print "expr"
-			elif isinstance(item, ast.Assign):
-				name = item.targets[0].id
-				module = self.llvmModule
-				if isinstance(item.value, ast.Num):
-					val = item.value.n
-				elif isinstance((item.value, ast.BinOp)):
-					val = 0
-				type = getTypeFromAST(item)
-				variable = module.get_global_variable_named(name)
-				if not variable:
-					variable = GlobalVariable.new(module, type, name)
-				if
+		self.function.compile()
+		module = self.llvmModule
 
-
-
-
-				print "assign"
-			elif isinstance(item, ast.While):
-				print "while"
-			elif isinstance(item, ast.If):
-				print "If"
-			else:
-				print "no idea"
-		print module
+		print self.llvmModule
 
 
 

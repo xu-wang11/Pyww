@@ -1,6 +1,6 @@
-__author__ = 'xu'
 a = 0
 b = 1
 c = 2
-a = a + b + c
+d = 4
+a = (a + b) + (c + d)
 print a
