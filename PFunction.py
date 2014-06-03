@@ -52,8 +52,9 @@ class PFunction:
 			self.builder = Builder.new(bb)
 			self.compiler.current_builder = self.builder
 			self.compiler.current_variables = self.variable
+			self.compiler.set_is_main(False)
 			#print "compile normal function"
-			ret_type = self.compile()
+			ret_type = self.compile(args)
 			if(ret_type != Type.void()):
 				self.function.delete()
 				function_type = Type.function(ret_type, args)
@@ -63,10 +64,22 @@ class PFunction:
 				self.builder = Builder.new(bb)
 				self.compiler.current_builder = self.builder
 				self.compiler.current_variables = self.variable
-				ret_type = self.compile()
+				ret_type = self.compile(args)
 
 
-	def compile(self):
+	def compile(self, types=[]):
+		arg_size = len(self.argnames)
+		if(len(types) == len(self.argnames)):
+			arg_values = self.function.args
+
+			for item in range(0, arg_size):
+				#alloca = self.compiler.current_builder.alloca(types[item], name=self.argnames[item])
+				#self.compiler.current_builder.store(arg_values[item], alloca)
+				#if item == IntegerType:
+				#print 'error'
+				self.compiler.current_variables[self.argnames[item]]= arg_values[item]
+
+
 		#print self.compiler
 		return_type = Type.void()
 		for item in ast.iter_child_nodes(self.node):
@@ -83,10 +96,13 @@ class PFunction:
 					args_val = []
 					real_function_name = function_name
 					for item in args:
-						variable = self.compiler.get_variable(item.id)
+						variable = self.compiler.compile_object(item)
 						args_type = variable.type
-						value = self.compiler.load_variable(item.id)
-						args_val.append(value)
+						if isinstance(args_type, PointerType):
+							variable = self.compiler.load_variable(item.id)
+							args_type = variable.type
+
+						args_val.append(variable)
 						args_types.append(args_type)
 						str = self.compiler.type2string(args_type)
 						real_function_name += "_" + str
@@ -97,11 +113,11 @@ class PFunction:
 					except Exception:
 						pfunction = self.vfunction[function_name]
 						if pfunction is not None:
-							pfunction.bind_compiler(self.compiler, False, args=args_val, name=real_function_name)
+							pfunction.bind_compiler(self.compiler, False, args=args_types, name=real_function_name)
 						function = self.compiler.get_function(real_function_name)
 						self.compiler.current_builder = self.builder
 						self.compiler.current_variables = self.variable
-						self.compiler.current_builder.call(function, [])
+						self.compiler.current_builder.call(function, args_val)
 
 			elif isinstance(item, ast.Assign):
 				self.compiler.compile_assign(item)

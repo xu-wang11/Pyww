@@ -58,12 +58,15 @@ class Compiler:
 		return variable
 
 	def add_global_variable(self, type, name):
-		if isinstance(type, IntegerType):
-			type = Type.int()
-		module = self.module
-		print self.module
-		print "hello"
+		#if isinstance(type, IntegerType):
+		#	type = Type.int()
+
 		variable = self.module.add_global_variable(type, name)
+
+		if isinstance(type, IntegerType):
+			variable.initializer = Constant.int(Type.int(), 0)
+		elif isinstance(type, PointerType):
+			variable.initializer = Constant.null(Type.pointer(Type.int(8)))
 		self.global_variables[name] = variable
 		self.current_variables[name] = variable
 		return variable
@@ -76,8 +79,30 @@ class Compiler:
 			return Constant.int(Type.int(), node.n)
 		elif isinstance(node, ast.Str):
 			return self.add_global_str(node.s)
+		elif isinstance(node, ast.List):
+			list_array = node.elts
+			n = len(list_array)
+
+			alloca = self.current_builder.alloca(Type.array(Type.int(), n))
+
+			index =  Constant.int(Type.int(), 0)
+
+
+			for item in list_array:
+				head = self.current_builder.gep(alloca,  [index, Constant.int(Type.int(), 0)])
+				index = index.add(Constant.int(Type.int(), 1))
+				variable = self.compile_object(item)
+				self.current_builder.store(variable, head)
+
+
+			return alloca
+
 		elif isinstance(node, ast.BinOp):
 			return self.compile_binop(node)
+		elif isinstance(node, ast.Name):
+			return self.get_variable(node.id)
+		else:
+			print "unsupport"
 
 	def set_is_main(self, ismain):
 		self.isMain = ismain
@@ -88,6 +113,8 @@ class Compiler:
 		return self.module.get_function_named(name)
 
 	def get_variable(self, name):
+		if name in self.current_variables:
+			return self.current_variables[name]
 		if name in self.global_variables:
 			return self.global_variables[name]
 
@@ -135,7 +162,7 @@ class Compiler:
 			if isinstance(node.left, ast.BinOp):
 				temp1 = self.compile_binop(node.left)
 			elif isinstance(node.left, ast.Name):
-				temp1 = self.load_variable(node.left.id)
+				temp1 = self.get_variable(node.left.id)
 
 			else: #if the value is constant value
 				temp1 = self.compile_object(node.left)
@@ -143,7 +170,7 @@ class Compiler:
 			if isinstance(node.right, ast.BinOp):
 				temp2 = self.compile_binop(node.right)
 			elif isinstance(node.right, ast.Name):
-				temp2 = self.load_variable(node.right.id)
+				temp2 = self.get_variable(node.right.id)
 			else:
 				temp2 = self.compile_object(node.right)
 
@@ -186,14 +213,22 @@ class Compiler:
 				self.save_value(right, variable)
 			else:
 				if self.isMain:
-					variable = self.add_global_variable(right.type, name)
+					if isinstance(right.type, PointerType):
+						variable = self.add_global_variable(Type.pointer(Type.int(8)), name)
+						head = self.current_builder.gep(right, [Constant.int(Type.int(), 0), Constant.int(Type.int(), 0)])
+						self.save_value(head, variable)
+						#variable.initializer = head
+					else:
+						variable = self.add_global_variable(right.type, name)
 					#self.current_variables[name] = variable
-					variable.initializer = right
-					#self.save_value(right, variable)
+
+					#variable.initializer = self.current_builder.load(right)
+						self.save_value(right, variable)
 				else:
-					aloca = self.current_builder.alloca(right.type, name)
+					#right = self.current_builder.store(right)
+					aloca = self.current_builder.alloca(right.type, name=name)
 					self.current_variables[name] = aloca
-					self.save_value(right, variable)
+					self.save_value(right, aloca )
 
 	def compile_print(self, node):
 		for item in node.values:
@@ -211,8 +246,10 @@ class Compiler:
 	def type2string(self, type):
 		if isinstance(type, IntegerType):
 			return "int"
-		elif isinstance(type, Type.pointer(Type.int(8))):
+		elif isinstance(type, PointerType):
 			return "str"
+		elif isinstance(type, ArrayType):
+			return "array"
 	#def compile_function(self, node):
 
 	def compile_return(self, node):
