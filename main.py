@@ -13,7 +13,7 @@ from Compiler import  *
 modules = []
 
 #modules.append(PywwModule())
-test_file = open("test5.py")
+test_file = open("test2.py")
 lines = test_file.readlines()
 content = ""
 for item in lines:

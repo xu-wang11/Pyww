@@ -36,7 +36,7 @@ class PFunction:
 			self.function = self.compiler.add_declare_function("main", function_type)
 			bb = self.function.append_basic_block("entry")
 			self.builder = Builder.new(bb)
-
+			self.compiler.function = self
 			self.compiler.current_builder = self.builder
 			self.compiler.global_builder = self.builder
 			self.compiler.current_variables = self.variable
@@ -48,6 +48,7 @@ class PFunction:
 			function_type = Type.function(Type.void(), args)
 			self.compiler = compiler
 			self.function = self.compiler.add_declare_function(name, function_type)
+			self.compiler.function = self
 			bb = self.function.append_basic_block("entry")
 			self.builder = Builder.new(bb)
 			self.compiler.current_builder = self.builder
@@ -58,7 +59,9 @@ class PFunction:
 			if(ret_type != Type.void()):
 				self.function.delete()
 				function_type = Type.function(ret_type, args)
+
 				self.function = self.compiler.add_declare_function(name, function_type)
+				self.compiler.function = self
 				#print "compile normal function"
 				bb = self.function.append_basic_block("entry")
 				self.builder = Builder.new(bb)
@@ -73,70 +76,29 @@ class PFunction:
 			arg_values = self.function.args
 
 			for item in range(0, arg_size):
-				#alloca = self.compiler.current_builder.alloca(types[item], name=self.argnames[item])
-				#self.compiler.current_builder.store(arg_values[item], alloca)
+				alloca = self.compiler.current_builder.alloca(types[item], name=self.argnames[item])
+				self.compiler.current_builder.store(arg_values[item], alloca)
 				#if item == IntegerType:
 				#print 'error'
-				self.compiler.current_variables[self.argnames[item]]= arg_values[item]
+
+				self.compiler.current_variables[self.argnames[item]]= alloca
 
 
 		#print self.compiler
 		return_type = Type.void()
+		expr_array = []
 		for item in ast.iter_child_nodes(self.node):
 			if isinstance(item, ast.FunctionDef):
 				func = PFunction(False, item)
 				self.vfunction[item.name] = func
 				print "function"
-			elif isinstance(item, ast.Expr):
-				value = item.value
-				if isinstance(value, ast.Call):
-					function_name = value.func.id
-					args = value.args
-					args_types = []
-					args_val = []
-					real_function_name = function_name
-					for item in args:
-						variable = self.compiler.compile_object(item)
-						args_type = variable.type
-						if isinstance(args_type, PointerType):
-							variable = self.compiler.load_variable(item.id)
-							args_type = variable.type
-
-						args_val.append(variable)
-						args_types.append(args_type)
-						str = self.compiler.type2string(args_type)
-						real_function_name += "_" + str
-					try:
-						function = self.compiler.get_function(real_function_name)
-						if function is None:
-							print "right"
-					except Exception:
-						pfunction = self.vfunction[function_name]
-						if pfunction is not None:
-							pfunction.bind_compiler(self.compiler, False, args=args_types, name=real_function_name)
-						function = self.compiler.get_function(real_function_name)
-						self.compiler.current_builder = self.builder
-						self.compiler.current_variables = self.variable
-						self.compiler.current_builder.call(function, args_val)
-
-			elif isinstance(item, ast.Assign):
-				self.compiler.compile_assign(item)
-			elif isinstance(item, ast.While):
-				print "while"
-			elif isinstance(item, ast.If):
-				print "If"
-			elif isinstance(item, ast.Print):
-				self.compiler.compile_print(item)
-			elif isinstance(item, ast.Return):
-				type = self.compiler.compile_return(item)
-				if return_type == Type.void():
-					return_type = type
-				elif not self.compiler.type_check(type, return_type):
-					print "don't support two different kind return value"
-
-
 			else:
-				print "no idea"
+				expr_array.append(item)
+
+
+		self.compiler.compile_block(expr_array)
+
+
 		if not self.isModule and return_type == Type.void():
 			self.compiler.current_builder.ret_void()
 		return return_type

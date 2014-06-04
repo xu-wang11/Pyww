@@ -3,4 +3,5 @@ def h(a, b):
 	c = a + b
 	print c
 m = 1
-h(m, 2)
+n = 3
+h(m + n, 2)
