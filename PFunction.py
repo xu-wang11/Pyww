@@ -5,22 +5,36 @@ from llvm import *
 from llvm.core import *
 from llvm.ee import *
 from llvm.passes import *
+from types import ListType
 
 
 
 class PFunction:
-	variable = {}
+	variable = None
 	builder = None
 	node = None
 	function = None
-	vfunction = {}
+	vfunction = None
 	compiler = None
-	argnames = []
-	functionName = ""
+	argnames = None
+	argtypes = None
+	functionName = None
 	#the function is for module or just for function
 	isModule = False
+	expr_array = None
+	isConstructFunction = False
+	selfClassName = None
+	pclass = None
+
 
 	def __init__(self, ismodule, node):
+		self.variable = {}
+		self.vfunction = {}
+		self.argnames = []
+		self.argtypes = []
+		self.expr_array = []
+		self.functionName = ""
+		self.selfClassName = ""
 		self.node = node
 
 		self.isModule = ismodule
@@ -28,6 +42,16 @@ class PFunction:
 			for item in node.args.args:
 				self.argnames.append(item.id)
 			print "extract attrs"
+
+
+	def extract_function(self):
+		for item in ast.iter_child_nodes(self.node):
+			if isinstance(item, ast.FunctionDef):
+				func = PFunction(False, item)
+				self.vfunction[item.name] = func
+				print "function"
+			else:
+				self.expr_array.append(item)
 
 	def bind_compiler(self, compiler, ismain = False, args = None, ret = None, name=None):
 		if ismain:
@@ -39,6 +63,7 @@ class PFunction:
 			self.compiler.function = self
 			self.compiler.current_builder = self.builder
 			self.compiler.global_builder = self.builder
+			self.variable = {}
 			self.compiler.current_variables = self.variable
 			self.compiler.set_is_main(True)
 			self.compile()
@@ -52,6 +77,7 @@ class PFunction:
 			bb = self.function.append_basic_block("entry")
 			self.builder = Builder.new(bb)
 			self.compiler.current_builder = self.builder
+			self.variable = {}
 			self.compiler.current_variables = self.variable
 			self.compiler.set_is_main(False)
 			#print "compile normal function"
@@ -72,6 +98,7 @@ class PFunction:
 
 	def compile(self, types=[]):
 		arg_size = len(self.argnames)
+
 		if(len(types) == len(self.argnames)):
 			arg_values = self.function.args
 
@@ -85,18 +112,21 @@ class PFunction:
 
 
 		#print self.compiler
+
+		if self.isConstructFunction == True:
+			index = Constant.int(Type.int(), 0)
+			n = len(self.pclass.variable_init)
+			for i in range(0, n):
+
+				variab = self.compiler.current_builder.load(self.compiler.current_variables['self'])
+				head = self.compiler.current_builder.gep(variab, [Constant.int(Type.int(), 0), index])
+				index = index.add(Constant.int(Type.int(), 1))
+
+				self.compiler.current_builder.store(self.pclass.variable_init[i], head)
 		return_type = Type.void()
-		expr_array = []
-		for item in ast.iter_child_nodes(self.node):
-			if isinstance(item, ast.FunctionDef):
-				func = PFunction(False, item)
-				self.vfunction[item.name] = func
-				print "function"
-			else:
-				expr_array.append(item)
-
-
-		self.compiler.compile_block(expr_array)
+		self.expr_array = []
+		self.extract_function()
+		return_type = self.compiler.compile_block(self.expr_array)
 
 
 		if not self.isModule and return_type == Type.void():

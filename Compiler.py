@@ -4,6 +4,8 @@ from llvm.core import *
 from llvm.ee import *
 from llvm import *
 from llvm.passes import *
+from PClass import PClass
+
 
 import ast
 
@@ -16,7 +18,7 @@ class NameManager:
 		print "nameManager"
 
 	def get_next_name(self):
-		++self.count
+		self.count += 1
 		return self.prefix + str(self.count)
 
 
@@ -28,6 +30,8 @@ class Compiler:
 	current_builder = []
 	global_variables = {}
 	current_variables = {}
+	global_class_def = {}
+	variable_class = {}
 	isMain = False
 	names = NameManager()
 	function = None
@@ -37,6 +41,7 @@ class Compiler:
 		self.module = module
 
 		self.add_global_str("%d", "printd")
+		self.add_global_str("%lf", "pf")
 		function_type = Type.function(Type.int(), [Type.pointer(Type.int(8))], True)
 		#self.module.add_function(function_type, "printf")
 		self.add_declare_function("printf", function_type)
@@ -76,10 +81,15 @@ class Compiler:
 	def add_declare_function(self, function_name, type):
 		return self.module.add_function(type, function_name)
 
-	def compile_object(self, node):
+	def compile_object(self, node, needLoad = [False]):
 		if isinstance(node, ast.Num):
-			return Constant.int(Type.int(), node.n)
+			needLoad[0] = False
+			if isinstance(node.n, float):
+				return Constant.real(Type.double(), node.n)
+			else:
+				return Constant.int(Type.int(), node.n)
 		elif isinstance(node, ast.Str):
+			needLoad[0] = False
 			string = self.add_global_str(node.s)
 			#value = self.current_builder.load(string)
 			#alloc = self.current_builder.alloca(Type.pointer(Type.int(8)))
@@ -87,33 +97,33 @@ class Compiler:
 			#self.current_builder.store(head, alloc)
 			return string
 		elif isinstance(node, ast.List):
+			needLoad[0] = False
 			list_array = node.elts
 			n = len(list_array)
-
 			alloca = self.current_builder.alloca(Type.array(Type.int(), n))
-
-			index =  Constant.int(Type.int(), 0)
-
-
+			index = Constant.int(Type.int(), 0)
 			for item in list_array:
 				head = self.current_builder.gep(alloca,  [Constant.int(Type.int(), 0), index])
 				index = index.add(Constant.int(Type.int(), 1))
-
 				variable = self.compile_object(item)
 				self.current_builder.store(variable, head)
-
-
 			return alloca
 
+
 		elif isinstance(node, ast.BinOp):
+			needLoad[0] = False
 			return self.compile_binop(node)
 		elif isinstance(node, ast.Name):
+			needLoad[0] = True
 			return self.get_variable(node.id)
 		elif isinstance(node, ast.BoolOp):
+			needLoad[0] = False
 			return self.compile_bool_op(node)
 		elif isinstance(node, ast.Compare):
+			needLoad[0] = False
 			return self.compile_compare(node)
 		elif isinstance(node, ast.Subscript):
+			needLoad[0] = True
 			data_array = node.value.id
 			variable = self.load_variable(data_array)
 			index = self.compile_object(node.slice.value)
@@ -129,6 +139,86 @@ class Compiler:
 				head = self.current_builder.gep(variable, [index])
 
 			return head
+		elif isinstance(node, ast.Call):
+			needLoad[0] = True
+			if hasattr(node.func, 'value'):
+				function_name = node.func.attr
+			else:
+				function_name = node.func.id
+			args = node.args
+			args_types = []
+			args_val = []
+			real_function_name = function_name
+
+
+
+			if hasattr(node.func, 'value'):
+				obj = self.compile_object(node.func.value)
+				args_val.append(obj)
+				args_types.append(obj.type)
+			if function_name in self.function.vfunction:
+				pfunction = self.function.vfunction[function_name]
+				if pfunction.isConstructFunction == True:
+					real_function_name += '_' + pfunction.pclass.class_name
+					class_type = pfunction.pclass.classType
+					args_types.append(Type.pointer(class_type))
+					class_value = self.current_builder.malloc(class_type, 'self')
+					args_val.append(class_value)
+			for item in args:
+				variable = self.compile_object(item)
+				args_type = variable.type
+				if isinstance(args_type, PointerType):
+					variable = self.load_variable(item.id)
+					args_type = variable.type
+					try:
+						if isinstance(variable.type.pointee, ArrayType):
+							variable = self.current_builder.gep(variable, [Constant.int(Type.int(), 0), Constant.int(Type.int(),0)])
+							args_type = Type.pointer(Type.int())
+					except:
+						print "error"
+				args_val.append(variable)
+				args_types.append(args_type)
+				str = self.type2string(args_type)
+				real_function_name += "_" + str
+
+			try:
+				function = self.get_function(real_function_name)
+				if function is None:
+					print "right"
+				self.current_builder.call(function, args_val)
+			except Exception:
+				old_function = self.function
+				pfunction = self.function.vfunction[function_name]
+				if pfunction is not None:
+					pfunction.bind_compiler(self, False, args=args_types, name=real_function_name)
+				function = self.get_function(real_function_name)
+				self.current_builder = old_function.builder
+				self.current_variables = old_function.variable
+				self.function = old_function
+				self.isMain = old_function.isModule
+				if pfunction.isConstructFunction == True:
+					self.current_builder.call(function, args_val)
+					#self.variable_class[pfunction.pclass.class_name] =
+					return class_value
+				else:
+					return self.current_builder.call(function, args_val)
+		elif isinstance(node, ast.Attribute):
+			needLoad[0] = True
+			attr_name = node.attr
+			needLoad = [False]
+			class_var = self.compile_object(node.value, needLoad)
+			if needLoad[0] == True:
+				class_var = self.current_builder.load(class_var)
+			class_name = class_var.type.pointee.name
+			pclass = self.global_class_def[class_name]
+			attr_index = pclass.variable_names.index(attr_name)
+			if attr_index >= 0:
+				#variable = self.current_builder.load(variable)
+				shift = [Constant.int(Type.int(), 0), Constant.int(Type.int(), attr_index)]
+				variable = self.current_builder.gep(class_var, shift)
+			return variable
+
+
 		else:
 			print "unsupport"
 
@@ -151,20 +241,28 @@ class Compiler:
 			variable = self.current_variables[name]
 		return self.current_builder.load(variable, name)
 
-	def print_int(self, val_name):
+	def print_int(self, variable):
 		print_var = self.get_variable("printd")
 		function = self.get_function("printf")
 		#print len(function.args)
 		#ptr = Type.pointer(Type.int(8), module.getel)
 		head = self.current_builder.gep(print_var,  [Constant.int(Type.int(), 0), Constant.int(Type.int(), 0)])
 		#load from local variables
-		if val_name in self.current_variables:
-			value = self.current_builder.load(self.current_variables[val_name])
+		if not isinstance(variable.type, IntegerType):
+			value = self.current_builder.load(variable)
+		else:
+			value = variable
 		#elif val_name in self.global_variables:
 		#	value = self.current_builder.load(self.global_variables[val_name])
 		args = [head, value]
 		return self.current_builder.call(function, args, 'calltmp')
-
+	def print_float(self, variable):
+		print_var = self.get_variable("pf")
+		function = self.get_function("printf")
+		head = self.current_builder.gep(print_var,  [Constant.int(Type.int(), 0), Constant.int(Type.int(), 0)])
+		value = self.current_builder.load(variable)
+		args = [head, value]
+		return self.current_builder.call(function, args, 'calltmp')
 	def print_variable(self, variable):
 		print_var = self.get_variable("printd")
 		function = self.get_function("printf")
@@ -186,35 +284,53 @@ class Compiler:
 		return self.current_builder.call(function, args, 'calltmp')
 
 	def compile_binop(self, node):
-		while isinstance(node, ast.BinOp):
+		if isinstance(node, ast.BinOp):
 			if isinstance(node.left, ast.BinOp):
 				temp1 = self.compile_binop(node.left)
 			elif isinstance(node.left, ast.Name):
 				temp1 = self.load_variable(node.left.id)
 
 			else: #if the value is constant value
-				temp1 = self.compile_object(node.left)
+				needLoad = [False]
+				temp1 = self.compile_object(node.left, needLoad)
+				if needLoad[0] == True:
+					temp1 = self.current_builder.load(temp1)
 
 			if isinstance(node.right, ast.BinOp):
 				temp2 = self.compile_binop(node.right)
 			elif isinstance(node.right, ast.Name):
 				temp2 = self.load_variable(node.right.id)
 			else:
-				temp2 = self.compile_object(node.right)
+				needLoad = [False]
+				temp2 = self.compile_object(node.right, needLoad)
+				if needLoad[0] == True:
+					temp2 = self.current_builder.load(temp2)
 
 
 			if isinstance(node.op, ast.Add):
-
-				temp = self.current_builder.add(temp1, temp2)
-
+				if temp1.type == Type.int() and temp2.type == Type.int():
+					temp = self.current_builder.add(temp1, temp2)
+				elif temp2.type == Type.double() and temp2.type == Type.double():
+					temp = self.current_builder.fadd(temp1, temp2)
 			elif isinstance(node.op, ast.And):
+
 				temp = self.current_builder.and_(temp1, temp2)
+
 			elif isinstance(node.op, ast.Sub):
-				temp = self.current_builder.sub(temp1, temp2)
+				if temp1.type == Type.int() and temp2.type == Type.int():
+					temp = self.current_builder.sub(temp1, temp2)
+				elif temp1.type == Type.double() and temp2.type == Type.double():
+					temp = self.current_builder.fsub(temp1, temp2)
 			elif isinstance(node.op, ast.Mult):
-				temp = self.current_builder.mul(temp1, temp2)
+				if temp1.type == Type.int() and temp2.type == Type.int():
+					temp = self.current_builder.mul(temp1, temp2)
+				elif temp1.type == Type.double() and temp2.type == Type.double():
+					temp = self.current_builder.fmul(temp1, temp2)
 			elif isinstance(node.op, ast.Div):
-				temp = self.current_builder.fdiv(temp1, temp2)
+				if temp1.type == Type.int() and temp2.type == Type.int():
+					temp = self.current_builder.sdiv(temp1, temp2)
+				elif temp1.type == Type.double() and temp2.type == Type.double():
+					temp = self.current_builder.fdiv(temp1, temp2)
 			elif isinstance(node.op, ast.RShift):
 				temp = self.current_builder.ashr(temp1, temp2)
 			else:
@@ -223,7 +339,7 @@ class Compiler:
 
 
 	def type_check(self, a, b):
-			return a.type == b.type
+			return True
 
 	def save_value(self, a, b):
 		self.current_builder.store(a, b)
@@ -233,50 +349,62 @@ class Compiler:
 			print "wrong input to compile assign"
 		print self.module
 		target = node.targets[0]
+		value = node.value
+		needLoad = [False]
+		right = self.compile_object(value, needLoad)
+		if needLoad[0] == True:
+			right = self.current_builder.load(right)
+		variable = self.compile_object(target, needLoad)
 		if isinstance(target, ast.Name):
 			name = target.id
-			value = node.value
-			right = self.compile_object(value)
 
-			variable = self.get_variable(name)
-			if variable is not None:
+
+			#variable = self.current_builder.get
+		if variable is not None:
 				self.save_value(right, variable)
-			else:
-				if self.isMain:
-					if isinstance(right.type, PointerType):
-						#width = right.type.pointee.element.width
-						#variable = self.add_global_variable(Type.pointer(Type.int(width)), name)
-						#head = self.current_builder.gep(right, [Constant.int(Type.int(), 0), Constant.int(Type.int(), 0)])
-						#self.save_value(head, variable)
-						#variable.initializer = head
-						aloca = self.current_builder.alloca(right.type, name=name)
-						self.current_variables[name] = aloca
-						self.save_value(right, aloca)
-					else:
-						#variable = self.add_global_variable(right.type, name)
-					#self.current_variables[name] = variable
-						#right = self.current_builder.load(right)
-						aloca = self.current_builder.alloca(right.type, name=name)
-						self.current_variables[name] = aloca
-						self.save_value(right, aloca)
-					#variable.initializer = self.current_builder.load(right)
-						#self.save_value(right, variable)
+		else:
+			if self.isMain:
+
+				if isinstance(right.type, PointerType):
+					#width = right.type.pointee.element.width
+					#variable = self.add_global_variable(Type.pointer(Type.int(width)), name)
+					#head = self.current_builder.gep(right, [Constant.int(Type.int(), 0), Constant.int(Type.int(), 0)])
+					#self.save_value(head, variable)
+					#variable.initializer = head
+
+					aloca = self.current_builder.alloca(right.type, name=name)
+					self.current_variables[name] = aloca
+
+					self.save_value(right, aloca)
 				else:
-					#right = self.current_builder.store(right)
-					right = self.current_builder.load(right)
+					#variable = self.add_global_variable(right.type, name)
+				#self.current_variables[name] = variable
+					#right = self.current_builder.load(right)
 					aloca = self.current_builder.alloca(right.type, name=name)
 					self.current_variables[name] = aloca
 					self.save_value(right, aloca)
-		else:
-			left = self.compile_object(target)
-			right = self.compile_object(node.value)
-			self.save_value(self.current_builder.load(right), left)
-			print "unsupport"
+				#variable.initializer = self.current_builder.load(right)
+					#self.save_value(right, variable)
+			else:
+				#right = self.current_builder.store(right)
+
+				aloca = self.current_builder.alloca(right.type, name=name)
+				self.current_variables[name] = aloca
+				self.save_value(right, aloca)
+		#else:
+		#	left = self.compile_object(target)
+		#	right = self.compile_object(node.value)
+		#	self.save_value(self.current_builder.load(right), left)
+		#	print "unsupport"
 
 	def compile_print(self, node):
 		for item in node.values:
-			if isinstance(item, ast.Name):
-				self.print_int(item.id)
+			variable = self.compile_object(item)
+			if isinstance(variable.type, IntegerType):
+				#variable = self.compile_object(item)
+				self.print_int(variable)
+			elif variable.type.pointee ==Type.double():
+				self.print_float(variable)
 
 			elif isinstance(item, ast.Str):
 				variable = self.compile_object(item)
@@ -337,8 +465,8 @@ class Compiler:
 		self.current_builder.branch(merge_block)
 		self.current_builder.position_at_end(merge_block)
 		phi = self.current_builder.phi(Type.int(), 'iftmp')
-		phi.add_incoming(then_value, then_block)
-		phi.add_incoming(else_value, else_block)
+		phi.add_incoming(Constant.int(Type.int(), 0), then_block)
+		phi.add_incoming(Constant.int(Type.int(), 0), else_block)
 
 		return phi
 
@@ -374,6 +502,7 @@ class Compiler:
 		print "unsupport while"
 
 	def compile_block(self, node):
+		return_type = Type.void()
 		for item in node:
 			if isinstance(item, ast.Assign):
 				self.compile_assign(item)
@@ -388,43 +517,7 @@ class Compiler:
 			elif isinstance(item, ast.Expr):
 				value = item.value
 				if isinstance(value, ast.Call):
-					function_name = value.func.id
-					args = value.args
-					args_types = []
-					args_val = []
-					real_function_name = function_name
-					for item in args:
-						variable = self.compile_object(item)
-						args_type = variable.type
-						if isinstance(args_type, PointerType):
-							variable = self.load_variable(item.id)
-							args_type = variable.type
-							try:
-								if isinstance(variable.type.pointee, ArrayType):
-									variable = self.current_builder.gep(variable, [Constant.int(Type.int(), 0), Constant.int(Type.int(),0)])
-									args_type = Type.pointer(Type.int())
-							except:
-								print "error"
-						args_val.append(variable)
-						args_types.append(args_type)
-						str = self.type2string(args_type)
-						real_function_name += "_" + str
-					try:
-						function = self.get_function(real_function_name)
-						if function is None:
-							print "right"
-						self.current_builder.call(function, args_val)
-					except Exception:
-						old_function = self.function
-						pfunction = self.function.vfunction[function_name]
-						if pfunction is not None:
-							pfunction.bind_compiler(self, False, args=args_types, name=real_function_name)
-						function = self.get_function(real_function_name)
-						self.current_builder = old_function.builder
-						self.current_variables = old_function.variable
-						self.function = old_function
-						self.isMain = old_function.isModule
-						self.current_builder.call(function, args_val)
+					self.compile_object(value)
 				elif isinstance(value, ast.UnaryOp):
 					op = value.op
 					if isinstance(op, ast.UAdd):
@@ -441,14 +534,22 @@ class Compiler:
 						self.current_builder.store(value, alloc)
 
 			elif isinstance(item, ast.Return):
-				type = self.compiler.compile_return(item)
+				type = self.compile_return(item)
 				if return_type == Type.void():
 					return_type = type
-				elif not self.compiler.type_check(type, return_type):
+				elif not self.type_check(type, return_type):
 					print "don't support two different kind return value"
-
-
-		return Constant.int(Type.int(), 0)
+			elif isinstance(item, ast.ClassDef):
+				classdef = PClass(item, self)
+				for item in classdef.functions:
+					item.selfClassName = classdef.class_name
+					self.function.vfunction[item.functionName] = item
+				classdef.init_function.isConstructFunction = True
+				classdef.init_function.pclass = classdef
+				classdef.init_function.selfClassName = classdef.class_name
+				self.function.vfunction[classdef.class_name] = classdef.init_function
+				self.global_class_def[classdef.class_name] = classdef
+		return return_type
 
 		#print "with solve"
 
