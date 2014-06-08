@@ -24,7 +24,6 @@ def qsort(array, head, tail):
 		qsort(array, head, r)
 
 
-
 a = [1, 2, 3, 9, 3, 4, 7, 10, 90, 20, 11, 10, 20]
 qsort(a, 0, 12)
 i = 0

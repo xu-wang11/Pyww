@@ -6,6 +6,7 @@ from llvm import  *
 from llvm.core import *
 from PModule import PModule
 from Compiler import  *
+import python_yacc
 #compile function in python
 #a function can be compiled directly means:
 #(1)this function has no args
@@ -14,12 +15,10 @@ modules = []
 
 #modules.append(PywwModule())
 test_file = open("test2.py")
-lines = test_file.readlines()
-content = ""
-for item in lines:
-    content += item
+content = test_file.read()
 print content
-comp = ast.parse(content, "result.py", mode='exec')
+comp = python_yacc.parse(content, "result.py")
+print comp
 #table = symtable.symtable(content, "string", "exec")
 #compileFunction(compiler)
 #pass_manager = FunctionPassManager.new(mymodule)

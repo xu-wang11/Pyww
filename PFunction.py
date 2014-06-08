@@ -1,11 +1,12 @@
 __author__ = 'xu'
 
 import ast
+from compiler import ast as yacc_ast
 from llvm import *
 from llvm.core import *
 from llvm.ee import *
 from llvm.passes import *
-
+import python_yacc
 
 
 class PFunction:
@@ -25,8 +26,8 @@ class PFunction:
 
 		self.isModule = ismodule
 		if not ismodule:
-			for item in node.args.args:
-				self.argnames.append(item.id)
+			for item in node.argnames:
+				self.argnames.append(item)
 			print "extract attrs"
 
 	def bind_compiler(self, compiler, ismain = False, args = None, ret = None, name=None):
@@ -87,8 +88,13 @@ class PFunction:
 		#print self.compiler
 		return_type = Type.void()
 		expr_array = []
-		for item in ast.iter_child_nodes(self.node):
-			if isinstance(item, ast.FunctionDef):
+		statements = None
+		if isinstance(self.node, yacc_ast.Function):
+			statements = self.node.code.nodes
+		else:
+			statements = self.node.node.nodes
+		for item in statements:
+			if isinstance(item, yacc_ast.Function):
 				func = PFunction(False, item)
 				self.vfunction[item.name] = func
 				print "function"
