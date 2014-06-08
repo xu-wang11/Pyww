@@ -22,6 +22,11 @@ Pyww is a python compiler  using LLVM
 
 ###Compiler the project:#
 clang++ -g main.cpp \`llvm-config --cppflags --ldflags --libs core jit native\` -O3 -o main
+###Solution#
+Solve Return Type: guess then compile, then compile twice
+compile .c to .ll
+clang -emit-llvm main.c -S -o main.ll
+
 
 ##Reference##
 - <a href="http://llvm.org/docs/tutorial/LangImpl4.html">LLVM-LangImpl</a>
