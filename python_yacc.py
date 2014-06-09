@@ -2520,13 +2520,9 @@ def parse(source, filename="<string>"):
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) != 2:
-        usage = "python_yacc.py: filename to parse and exec; or --self-test"
-        print >>sys.stderr, usage
-        print >>sys.stderr, " (you probably want to use ./compile.py)"
-        sys.exit(1)
+
     
-    filename = sys.argv[1]  # compile and exec the given file
+    filename = "test2.py"  # compile and exec the given file
     tree = parse(open(filename).read(), filename)
     print tree
     gen = pycodegen.ModuleCodeGenerator(tree)

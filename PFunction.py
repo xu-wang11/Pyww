@@ -1,11 +1,16 @@
 __author__ = 'xu'
 
 import ast
+from compiler import ast as yacc_ast
 from llvm import *
 from llvm.core import *
 from llvm.ee import *
 from llvm.passes import *
+
 from types import ListType
+
+
+import python_yacc
 
 
 
@@ -39,14 +44,19 @@ class PFunction:
 
 		self.isModule = ismodule
 		if not ismodule:
-			for item in node.args.args:
-				self.argnames.append(item.id)
+			for item in node.argnames:
+				self.argnames.append(item)
 			print "extract attrs"
 
 
 	def extract_function(self):
-		for item in ast.iter_child_nodes(self.node):
-			if isinstance(item, ast.FunctionDef):
+		statements = None
+		if isinstance(self.node, yacc_ast.Function):
+			statements = self.node.code.nodes
+		else:
+			statements = self.node.node.nodes
+		for item in statements:
+			if isinstance(item, yacc_ast.Function):
 				func = PFunction(False, item)
 				self.vfunction[item.name] = func
 				print "function"
@@ -83,16 +93,20 @@ class PFunction:
 			#print "compile normal function"
 			ret_type = self.compile(args)
 			if(ret_type != Type.void()):
-				self.function.delete()
+				function = self.function
+				self.function = None
+				function.delete()
 				function_type = Type.function(ret_type, args)
 
-				self.function = self.compiler.add_declare_function(name, function_type)
+				function = self.compiler.add_declare_function(name, function_type)
 				self.compiler.function = self
-				#print "compile normal function"
-				bb = self.function.append_basic_block("entry")
+				print "compile normal function"
+				bb = function.append_basic_block("entry")
 				self.builder = Builder.new(bb)
 				self.compiler.current_builder = self.builder
+				self.variable = {}
 				self.compiler.current_variables = self.variable
+				self.function = function
 				ret_type = self.compile(args)
 
 
@@ -112,6 +126,7 @@ class PFunction:
 
 
 		#print self.compiler
+
 
 		if self.isConstructFunction == True:
 			index = Constant.int(Type.int(), 0)

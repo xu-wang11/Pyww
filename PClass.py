@@ -5,6 +5,7 @@ from llvm import *
 from llvm.core import *
 from llvm.ee import *
 from PFunction import PFunction
+from compiler import ast as yacc_ast
 class PClass:
 	functions = None
 	variable_types = None
@@ -21,16 +22,16 @@ class PClass:
 		self.class_name = node.name
 		function_node = []
 
-		for item in node.body:
-			if isinstance(item, ast.Assign):
-				target = item.targets[0].id
-				value = compiler.compile_object(item.value)
+		for item in node.code.nodes:
+			if isinstance(item, yacc_ast.Assign):
+				target = item.nodes[0].name
+				value = compiler.compile_object(item.expr)
 				self.variable_names.append(target)
 				self.variable_types.append(value.type)
 				self.variable_init.append(value)
 
 				#self.init_value = value
-			elif isinstance(item, ast.FunctionDef):
+			elif isinstance(item, yacc_ast.Function):
 				function = None
 				function = PFunction(False, item)
 				function.functionName = item.name

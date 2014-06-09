@@ -1,5 +1,5 @@
 __author__ = 'xu'
 i = 0
 while i < 10:
-	++i
-	print "hello\n"
+    i = i + 1
+    print "hello\n"

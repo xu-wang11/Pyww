@@ -1,5 +1,3 @@
 def h():
-	def f():
-		print "world"
-	f()
+    print "world"
 h()
