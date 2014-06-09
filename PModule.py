@@ -1,7 +1,6 @@
 __author__ = 'xu'
 
 from PFunction import PFunction
-from util import *
 from Compiler import Compiler
 
 

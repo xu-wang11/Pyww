@@ -1,7 +1,7 @@
 __author__ = 'xu'
 
 import ast
-from types import IntType, StringType
+from types import IntType, StringType, FloatType
 from compiler import ast as yacc_ast
 from llvm.core import *
 from llvm.ee import *
@@ -112,6 +112,8 @@ class Compiler:
 			needLoad[0] = False
 			if isinstance(node.value, IntType):
 				return Constant.int(Type.int(), node.value)
+			elif isinstance(node.value, FloatType):
+				return Constant.real(Type.double(), node.value)
 			elif isinstance(node.value, StringType):
 				string = self.add_global_str(node.value)
 				# value = self.current_builder.load(string)
@@ -397,7 +399,7 @@ class Compiler:
 	def compile_assign(self, node):
 		if not isinstance(node, yacc_ast.Assign):
 			print "wrong input to compile assign"
-		print self.module
+		#print self.module
 		target = node.nodes[0]
 		value = node.expr
 		needLoad = [False]

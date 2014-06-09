@@ -660,7 +660,7 @@ class PythonLexer(object):
 
 lexer = PythonLexer()
 
-text = open("test.py").read()
-lexer.input(text, "test.py")
-for tok in lexer:
-    print tok
+#text = open("test.py").read()
+#lexer.input(text, "test.py")
+#for tok in lexer:
+#    print tok
