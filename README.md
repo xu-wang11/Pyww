@@ -9,23 +9,39 @@ Pyww is a python compiler  using LLVM
 - <a href="http://yanglei.me" target="_blank">Lei Yang</a> yanglei11@mails.thu.edu.cn
 
 ##Environment##
+
+###Support Grammar#
+
+- compile class but don't support extends
+- support +/-/*//>>/<< and not or 
+- support if, while, for sentence
+- a list's elment must be the only type
+- variable cannot change its' type
+- a lots of thing to do for the compiler for python
+
 ###packages#
 <table>
 <tr>
 <th>name</th><th>version</th>
 </tr>
 <tr>
-<td>LLVM</td><td>3.4</td>
+<td>LLVM</td><td>3.2</td>
 </tr>
-<td>Clang</td><td>3.4</td>
+<tr>
+<td>Clang</td><td>3.2</td>
+</tr>
+<tr>
+<td>llvmpy</td><td>0.12.0</td>
+</tr>
+<tr><td>ply</td><td>3.4</td>
 </table>
 
 ###Compiler the project:#
-clang++ -g main.cpp \`llvm-config --cppflags --ldflags --libs core jit native\` -O3 -o main
+make
 ###Solution#
-Solve Return Type: guess then compile, then compile twice
-compile .c to .ll
-clang -emit-llvm main.c -S -o main.ll
+Solve Return Type: guess then compile, then compile twice<br>
+compile *.c to *.ll<br>
+clang -emit-llvm main.c -S -o main.ll<br>
 
 
 ##Reference##
