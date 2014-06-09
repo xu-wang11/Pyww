@@ -14,7 +14,7 @@ import python_yacc
 modules = []
 
 
-test_file = open("test2.py")
+test_file = open("test11.py")
 content = test_file.read()
 
 print content

@@ -85,8 +85,7 @@ class Compiler:
 	def is_binop(self, node):
 		if isinstance(node, yacc_ast.Add):
 			return True
-		elif isinstance(node, yacc_ast.And):
-			return True
+
 		elif isinstance(node, yacc_ast.Sub):
 			return True
 		elif isinstance(node, yacc_ast.Mul):
@@ -97,6 +96,16 @@ class Compiler:
 			return True
 		return False
 
+	def is_binop_compare(self, node):
+		if isinstance(node, yacc_ast.And):
+			return True
+		elif isinstance(node, yacc_ast.Or):
+			return True
+		elif isinstance(node, yacc_ast.Not):
+			return True
+		elif isinstance(node, yacc_ast.Bitxor):
+			return True
+		return False
 
 	def compile_object(self, node, needLoad = [False]):
 		if isinstance(node, yacc_ast.Const):
@@ -130,6 +139,9 @@ class Compiler:
 		elif self.is_binop(node):
 			needLoad[0] = False
 			return self.compile_binop(node)
+		elif self.is_binop_compare(node):
+			needLoad[0] = False
+			return self.compile_bool_op(node)
 		elif isinstance(node, yacc_ast.AssName):
 			needLoad[0] = False
 			return self.get_variable(node.name)
@@ -547,7 +559,7 @@ class Compiler:
 			elif isinstance(item, yacc_ast.If):
 				self.compile_if(item)
 			elif isinstance(item, yacc_ast.For):
-				self.compile_while(item)
+				self.compile_for(item)
 			elif isinstance(item, yacc_ast.While):
 				self.compile_while(item)
 			elif isinstance(item, yacc_ast.Printnl):
@@ -600,16 +612,16 @@ class Compiler:
 	# print "with solve"
 
 	def compile_bool_op(self, node):
-		if isinstance(node.op, yacc_ast.And):
-			compare1 = self.compile_object(node.values[0])
-			compare2 = self.compile_object(node.values[1])
+		if isinstance(node, yacc_ast.And):
+			compare1 = self.compile_object(node.nodes[0])
+			compare2 = self.compile_object(node.nodes[1])
 			return self.current_builder.and_(compare1, compare2)
-		elif isinstance(node.op, yacc_ast.Or):
-			compare1 = self.compile_object(node.values[0])
-			compare2 = self.compile_object(node.values[1])
+		elif isinstance(node, yacc_ast.Or):
+			compare1 = self.compile_object(node.nodes[0])
+			compare2 = self.compile_object(node.nodes[1])
 			return self.current_builder.or_(compare1, compare2)
-		elif isinstance(node.op, yacc_ast.Not):
-			compare = self.compile_object(node.values[0])
+		elif isinstance(node, yacc_ast.Not):
+			compare = self.compile_object(node.nodes[0])
 			return self.current_builder.not_(compare)
 
 	def compile_compare(self, node):
@@ -640,6 +652,35 @@ class Compiler:
 		elif isinstance(node, yacc_ast.Subscript):
 			head = self.compile_object(node)
 			return self.current_builder.load(head)
+
+	def compile_for(self, node):
+		before_block = self.function.function.append_basic_block('beforefor')
+		for_block = self.function.function.append_basic_block('for')
+		after_block = self.function.function.append_basic_block('afterfor')
+		name = node.assign.name
+		needLoad =[False]
+		com_list = self.compile_object(node.list, needLoad)
+		if needLoad[0] == True:
+			com_list = self.current_builder.load(com_list)
+		cmp2 = Constant.int(Type.int(), com_list.use_count) # len of the array
+		cmp1 = self.current_builder.alloca(Type.int())
+		self.current_builder.store(Constant.int(Type.int(), 0), cmp1)
+		item = self.current_builder.alloca(Type.int(), name=name)
+		self.current_variables[name] = item
+		self.current_builder.branch(before_block)
+		self.current_builder.position_at_end(before_block) #begin for
+		value = self.current_builder.load(cmp1)
+		condition_bool = self.current_builder.icmp(IPRED_SLT, value, cmp2)
+		#condition_bool = Truei
+		self.current_builder.cbranch(condition_bool, for_block, after_block)
+		self.current_builder.position_at_end(for_block)
+		head = self.current_builder.gep(com_list, [Constant.int(Type.int(), 0), value])
+		self.current_builder.store(self.current_builder.load(head), item)
+		for_value = self.compile_block(node.body)
+		self.current_builder.store(self.current_builder.add(Constant.int(Type.int(), 1), value), cmp1)
+		self.current_builder.branch(before_block)
+		self.current_builder.position_at_end(after_block)
+		print "finish compile for"
 
 
 
